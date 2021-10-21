@@ -1,0 +1,57 @@
+val df = sqlContext.read.format("com.databricks.spark.csv").
+option("header", "false").
+option("inferSchema", "true").
+load("file:///home/cloudera/sample-data/million_song/YearPredictionMSD.txt")
+
+import java.io.{PrintWriter,FileOutputStream}
+var pw = new PrintWriter(new FileOutputStream("./schema.json"), true)
+
+pw.println(df.schema.prettyJson)
+pw.close
+
+
+
+import java.nio.file._
+val schemaString = new String(Files.readAllBytes(Paths.get("/home/cloudera/sample-data/million_song/schema.json")))
+
+
+val structType = DataType.fromJson(schemaString)
+
+val df = sqlContext.read.format("com.databricks.spark.csv").
+option("header", "false").
+option("inferSchema", "true").
+schema(structType.asInstanceOf[StructType]).
+load("file:///home/cloudera/sample-data/million_song/YearPredictionMSD.txt")
+
+df.registerTempTable("millionsong")
+
+val yearHist = sqlContext.sql("select year, count(1) cnt from millionsong group by year")
+yearHist.registerTempTable("year_dist")
+
+
+case class Track(year: Int, id: String, artist: String, title: String) extends java.io.Serializable
+val tracks = sc.textFile(("file:///home/cloudera/sample-data/million_song/tracks_per_year.txt")) 
+val trackRDD = tracks map ((line:String) => {
+val parts = line.split("<SEP>")
+Track(parts(0).toInt,parts(1), parts(2), parts(3))
+})
+val trackDF = trackRDD.toDF
+trackDF.registerTempTable("tracks")
+
+//join using sql
+sqlContext.sql("select t.year, y.cnt from year_dist y join tracks t on t.year = y.year order by t.year").show
+
+//join using api
+val joinDF = yearHist.join(trackDF, Array("year"))
+yearHist.join(trackDF, Array("year")).select("year", "cnt").show
+
+//
+yearHist.write.json("/user/cloudera/Download/me")
+
+yearHist.repartition(1).write.format("com.databricks.spark.csv").
+option("header", "true").
+option("delimiter", "\t").
+save("/user/cloudera/Download/me")
+
+yearHist.repartition(1).write.
+parquet("/user/cloudera/Download/mep")

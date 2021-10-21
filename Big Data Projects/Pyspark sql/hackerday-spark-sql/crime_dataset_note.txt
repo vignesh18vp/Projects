@@ -1,0 +1,11 @@
+val options = Map("header" -> "true", 
+"inferSchema" -> "true",
+"dateFormat" -> "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
+
+val df = sqlContext.read.format("com.databricks.spark.csv").
+options(options).
+load("file:///home/cloudera/Downloads/Crime_Incidents_2008-2016october.csv")
+
+import org.apache.spark.sql.hive.HiveContext
+
+val hiveCtx = new HiveContext(sc)

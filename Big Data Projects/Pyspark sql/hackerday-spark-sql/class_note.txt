@@ -1,0 +1,17 @@
+//the airport-codes.csv.json is attached in this project folder
+val df = sqlContext.read.json("file:///home/cloudera/airport-codes.csv.json")
+
+val contnt = sc.textFile("file:///home/cloudera/airport-codes.csv.json")
+
+
+//download the movielens file at http://files.grouplens.org/datasets/movielens/ml-1m.zip
+case class Movie(id: Long, title: String, genres: Array[String]) extends java.io.Serializable
+
+val movieFile = sc.textFile("file:///home/cloudera/Downloads/ml-1m/movies.dat")
+val movieRDD = movieFile map (l => {
+	val parts = l.split("::")
+	Movie(parts(0).toLong, parts(1), parts(2).split("\\|"))
+})
+val movieDF = movieRDD.toDF
+
+
